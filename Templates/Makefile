@@ -10,14 +10,14 @@ PROGRAM = mandelseq
 #        mpicc       (mpi)
 #        icc -openmp (openmp)
 #-------------------------------------------------
-CC  = icc
+CC  = mpicc
 
 
 OBJ     = ${PROGRAM:=.o}
 
 ARCH = _LINUX
-INCLUDE_DIR = -I/homea/hpclab/train199/kurs/Tools
-LIBS =  -L/homea/hpclab/train199/kurs/Tools -lppmwrite -lm
+INCLUDE_DIR = -I../Tools
+LIBS =  -L../Tools -lppmwrite -lm
 USER_CFLAGS =  $(INCLUDE_DIR) -D${ARCH} -g 
 
 USER_FFLAGS =  $(INCLUDE_DIR) -r8  -g 
