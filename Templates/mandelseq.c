@@ -32,9 +32,9 @@ void usage(char *name) {
   exit(1);
 }
 
-void calc(int *iterations, int width, int height, int row_start, int row_end, int col_start, int col_end,
-         double xmin, double xmax, double ymin, double ymax, int maxiter );
-double y;
+void calc(int *iterations, int width, int height, int myid, int numprocs,
+	  double xmin, double xmax, double ymin, double ymax, int maxiter, int start_row, int end_row);
+
 int main(int argc, char *argv[]) {
 
   MPI_Init(&argc, &argv);
@@ -121,10 +121,11 @@ int main(int argc, char *argv[]) {
   }
 
   //st = esecond();
-  int row;
-  y = ymin;
-  for(row=rank; row<height; row+=size)
-    calc(iterations, width, height, row, row+1, 0, width, xmin, xmax, ymin, ymax, maxiter);
+  double rowHeight = (ymax-ymin)/height;
+  int curRow;
+  for (curRow=rank; curRow<height; curRow+=size){
+    calc(iterations, width, 1, rank, size, xmin, xmax, ymin + curRow*rowHeight, ymin + curRow*rowHeight+rowHeight, maxiter, curRow, curRow+1);
+  }
   //timeused = esecond()-st;
   //calctime += timeused;
 
@@ -144,18 +145,19 @@ int main(int argc, char *argv[]) {
 }
 
 
-void calc(int *iterations, int width, int height,int row_start, int row_end, int col_start, int col_end,
-         double xmin, double xmax, double ymin, double ymax, int maxiter ) {
-  double dx,dy,x;
+
+void calc(int *iterations, int width, int height, int myid, int numprocs,
+	  double xmin, double xmax, double ymin, double ymax, int maxiter, int start_row, int end_row ) {
+  double dx,dy,x,y;
   int    ix,iy;
 
   dx = (xmax - xmin) / width;
   dy = (ymax - ymin) / height;
 
-  
-  for (iy=row_start; iy<row_end; ++iy) {
+  y = ymin;
+  for (iy=start_row; iy<end_row; ++iy) {
     x = xmin;
-    for (ix=col_start; ix<col_end; ix++) {
+    for (ix=0; ix<width; ix++) {
       double zx=0.0,zy=0.0,zxnew;
       int count = 0;
       while ( zx*zx+zy*zy < 16*16 && count < maxiter ) {
