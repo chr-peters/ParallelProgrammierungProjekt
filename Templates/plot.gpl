@@ -1,0 +1,22 @@
+# (PostScript output)
+#set terminal postscript eps color solid 12
+#set output  "sendemodi.eps"
+
+set xlabel "# Bytes"
+set ylabel "Time (us)"
+
+set xrange [1:1024*1024]
+#set yrange [0:1000]
+
+set title "Zeitmessung bei verschiedenen Sendemodi und Nachrichtenlaengen"
+
+set logscale x
+set logscale y
+
+
+plot 	"send.dat"  u 1:3  ti "MPI_Send (standard)" with linesp lw 2, \
+	"ssend.dat" u 1:3  ti "MPI_Ssend (synchron)" with linesp lw 2, \
+	"bsend.dat" u 1:3  ti "MPI_Bsend (gepuffert)" with linesp lw 2
+
+
+pause -1 "Hit return to continue"
