@@ -151,9 +151,12 @@ int main(int argc, char *argv[]) {
 
     // calculate the y range of the block
     double yRange = ((double)rowCount/height)*(ymax-ymin);
+
+    int defaultRowCount = ceil((float)height / size);
+    double defaultYRange = ((double)defaultRowCount/height)*(ymax-ymin);
     
     // call the calc method
-    calc(iterations, width, rowCount, xmin, xmax, ymin + rank*yRange, ymin + rank*yRange + yRange, maxiter, 0, rowCount, 0, width);
+    calc(iterations, width, rowCount, xmin, xmax, ymin + rank*defaultYRange, ymin + rank*defaultYRange + yRange, maxiter, 0, rowCount, 0, width);
 
     /**
      * Collect the results
