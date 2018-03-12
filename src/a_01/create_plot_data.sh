@@ -15,7 +15,7 @@ then
 fi
 
 # create .csv file containing the first line
-echo 'size, rank, type, runtime, calctime, mpitime, waittime' > $FILENAME
+echo 'size, rank, type, runtime, calctime, mpitime, waittime, iotime' > $FILENAME
 
 # iterate over number of procs
 for PROCS in `seq 1 $MAXPROCS`
