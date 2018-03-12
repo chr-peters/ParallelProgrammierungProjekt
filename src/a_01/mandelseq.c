@@ -57,8 +57,12 @@ int main(int argc, char *argv[]) {
   int    ix,iy;
   
   int    i;
-  double st,timeused,calctime=0.0, waittime=0.0, iotime=0.0;
+  double calctime=0.0, runtime=0.0, mpitime=0.0, waittime=0.0, iotime=-1;
   char   filename[1024];
+
+  // measure runtime
+  MPI_Barrier(MPI_COMM_WORLD);
+  double runtime_start = esecond();
 
   ppminitsmooth(1);
 
@@ -97,13 +101,6 @@ int main(int argc, char *argv[]) {
     i++;
   }
 
-  /* start calculation */
-  if(verbose) {
-    printf("start calculation (x=%8.5g ..%8.5g,y=%10.7g ..%10.7g) ... \n",
-           xmin,xmax,ymin,ymax);
-    fflush(stdout);
-  }
-  
   /* initialize arrays */
   if (rank == 0) {
     recvbuffer = malloc(width*height*sizeof(int));
@@ -114,7 +111,6 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  //st = esecond();
   if (type == 0) {
     /**
      * Initialize memory.
@@ -127,6 +123,9 @@ int main(int argc, char *argv[]) {
       }
     }
 
+    // starting measurement of calctime
+    double calcstart = esecond();
+
     /**
      * Perform calculations.
      */
@@ -135,11 +134,22 @@ int main(int argc, char *argv[]) {
     for (curRow=rank; curRow<height; curRow+=size){
       calc(iterations, width, 1, xmin, xmax, ymin + curRow*rowHeight, ymin + curRow*rowHeight+rowHeight, maxiter, curRow, curRow+1, 0, width);
     }
+    
+    // measure calctime
+    calctime = esecond() - calcstart;
+
+    // measure wait time
+    double waitstart = esecond();
+    MPI_Barrier(MPI_COMM_WORLD);
+    waittime = esecond() - waitstart;
 
     /**
      * Get the results.
      */
+    // starting measurement of mpitime
+    double mpistart = esecond();
     MPI_Reduce(iterations, recvbuffer, width*height, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
+    mpitime = esecond() - mpistart;
 
   } else if (type == 1) {
     // calculate number of rows per process
@@ -154,9 +164,20 @@ int main(int argc, char *argv[]) {
 
     int defaultRowCount = ceil((float)height / size);
     double defaultYRange = ((double)defaultRowCount/height)*(ymax-ymin);
+
+    // starting measurement of calctime
+    double calcstart = esecond();
     
     // call the calc method
     calc(iterations, width, rowCount, xmin, xmax, ymin + rank*defaultYRange, ymin + rank*defaultYRange + yRange, maxiter, 0, rowCount, 0, width);
+
+    // measure calctime
+    calctime = esecond() - calcstart;
+
+    // measure wait time
+    double waitstart = esecond();
+    MPI_Barrier(MPI_COMM_WORLD);
+    waittime = esecond() - waitstart;
 
     /**
      * Collect the results
@@ -183,21 +204,30 @@ int main(int argc, char *argv[]) {
 	}
       }
     }
+
+    // measure mpi time
+    double mpistart = esecond();
     MPI_Gatherv(iterations, rowCount*width, MPI_INT, recvbuffer, recvcounts, displs, MPI_INT, 0, MPI_COMM_WORLD);
+    mpitime = esecond() - mpistart;
   }
-  //timeused = esecond()-st;
-  //calctime += timeused;
 
-  //st = esecond();
+  // measure time of whole program
+  MPI_Barrier(MPI_COMM_WORLD);
+  runtime = esecond() - runtime_start;
+
+  // output the picture
   if(rank == 0){//master
-    printf("numproc= %d \n", size);
+    // measure iotime
+    double iostart = esecond();
     ppmwrite(recvbuffer,width,height,0,maxiter,"mandelcol.ppm");
+    iotime = esecond() - iostart;
   }
 
-  //timeused = esecond()-st;
-  //iotime += timeused;
-  //if(verbose) printf("PE%02d: calc=%7.4f,wait=%7.4f, io=%7.4f\n",
-  //                   myid,calctime,waittime,iotime);
+  // print the time data in a csv line
+  if (verbose) {
+    printf("%d, %d, %d, %f, %f, %f, %f, %f\n", size, rank, type, runtime, calctime, mpitime, waittime, iotime);
+  }
+
   MPI_Finalize();
   exit(0);
 }
