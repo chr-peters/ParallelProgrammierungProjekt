@@ -225,7 +225,7 @@ int main(int argc, char *argv[]) {
 
   // print the time data in a csv line
   if (verbose) {
-    printf("%d, %d, %d, %f, %f, %f, %f, %f\n", size, rank, type, runtime, calctime, mpitime, waittime, iotime);
+    printf("%d,%d,%d,%f,%f,%f,%f,%f\n", size, rank, type, runtime, calctime, mpitime, waittime, iotime);
   }
 
   MPI_Finalize();
