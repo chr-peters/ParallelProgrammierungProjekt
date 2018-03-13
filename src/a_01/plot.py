@@ -3,7 +3,7 @@
 import pandas as pd
 import matplotlib.pyplot as plt
 
-def runtime_plot(df):
+def runtime_plot(df, axis):
     # select data of master process
     masters_filter = df["rank"] == 0
     masters = df[masters_filter]
@@ -23,15 +23,15 @@ def runtime_plot(df):
     # create plot
     markersize = 15
     markersymbol = "x"
-    plt.scatter(type0["size"], type0["runtime"], marker=markersymbol, s=markersize)
-    plt.scatter(type1["size"], type1["runtime"], marker=markersymbol, s=markersize)
-    plt.scatter(type2["size"], type2["runtime"], marker=markersymbol, s=markersize)
-    plt.xlabel('Number of processes')
-    plt.ylabel('Time in seconds')
-    plt.legend(['type 0', 'type 1', 'type 2'])
-    plt.title('Runtime plot')
+    axis.scatter(type0["size"], type0["runtime"], marker=markersymbol, s=markersize)
+    axis.scatter(type1["size"], type1["runtime"], marker=markersymbol, s=markersize)
+    axis.scatter(type2["size"], type2["runtime"], marker=markersymbol, s=markersize)
+    axis.set_xlabel('Number of processes')
+    axis.set_ylabel('Time in seconds')
+    axis.legend(['type 0', 'type 1', 'type 2'])
+    axis.set_title('Runtime plot')
 
-def speedup_plot(df):
+def speedup_plot(df, axis):
     # select data of master process
     masters_filter = df["rank"] == 0
     masters = df[masters_filter]
@@ -56,23 +56,26 @@ def speedup_plot(df):
     # create plot
     markersize = 15
     markersymbol = "x"
-    plt.scatter(type0["size"], type0_serial / type0["runtime"], marker=markersymbol, s=markersize)
-    plt.scatter(type1["size"], type1_serial / type1["runtime"], marker=markersymbol, s=markersize)
-    plt.scatter(type2["size"], type2_serial / type2["runtime"], marker=markersymbol, s=markersize)
-    plt.xlabel('Number of processes')
-    plt.ylabel('Speedup')
-    plt.legend(['type 0', 'type 1', 'type 2'])
-    plt.title('Speedup plot')
+    axis.scatter(type0["size"], type0_serial / type0["runtime"], marker=markersymbol, s=markersize)
+    axis.scatter(type1["size"], type1_serial / type1["runtime"], marker=markersymbol, s=markersize)
+    axis.scatter(type2["size"], type2_serial / type2["runtime"], marker=markersymbol, s=markersize)
+    axis.set_xlabel('Number of processes')
+    axis.set_ylabel('Speedup')
+    axis.legend(['type 0', 'type 1', 'type 2'])
+    axis.set_title('Speedup plot')
 
 if __name__ == '__main__':
     # read the .csv file
     df = pd.read_csv('plot_data.csv')
     
-    plt.subplot(2, 1, 1)
-    runtime_plot(df)
+    ax1 = plt.subplot2grid((2, 2), (0, 0))
+    runtime_plot(df, ax1)
 
-    plt.subplot(2, 1, 2)
-    speedup_plot(df)
+    ax2 = plt.subplot2grid((2, 2), (0, 1))
+    speedup_plot(df, ax2)
+
+    ax3 = plt.subplot2grid((2, 2), (1, 0), colspan=2)
+    runtime_plot(df, ax3)
 
     plt.tight_layout()
     plt.show()
