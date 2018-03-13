@@ -57,7 +57,7 @@ int main(int argc, char *argv[]) {
   int    ix,iy;
   
   int    i;
-  double calctime=0.0, runtime=0.0, mpitime=0.0, waittime=0.0, iotime=-1;
+  double calctime=0.0, runtime=0.0, mpitime=0.0, waittime=0.0, iotime=0.0;
   char   filename[1024];
 
   // measure runtime
