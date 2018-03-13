@@ -64,6 +64,32 @@ def speedup_plot(df, axis):
     axis.legend(['type 0', 'type 1', 'type 2'])
     axis.set_title('Speedup plot')
 
+def distribution_plot(df, axis):
+    # select data for run on 48 nodes
+    data = df[df["size"] == 48]
+
+    # select data for type 0
+    type0 = data[data["type"] == 0]
+    type0 = type0.sort_values("rank")
+
+    # select data for type 1
+    type1 = data[data["type"] == 1]
+    type1 = type1.sort_values("rank")
+
+    # select data for type 2
+    type2 = data[data["type"] == 2]
+    type2 = type2.sort_values("rank")
+
+    # create plot
+    axis.plot(type0["rank"], type0["calctime"] + type0["mpitime"], "-o")
+    axis.plot(type1["rank"], type1["calctime"] + type1["mpitime"], "-o")
+    axis.plot(type2["rank"], type2["calctime"] + type2["mpitime"], "-o")
+    axis.set_xlabel('Process ID')
+    axis.set_ylabel('Calctime + MPITime in seconds')
+    axis.legend(['type 0', 'type 1', 'type 2'])
+    axis.set_title('Time plot')
+
+
 if __name__ == '__main__':
     # read the .csv file
     df = pd.read_csv('plot_data.csv')
@@ -75,7 +101,7 @@ if __name__ == '__main__':
     speedup_plot(df, ax2)
 
     ax3 = plt.subplot2grid((2, 2), (1, 0), colspan=2)
-    runtime_plot(df, ax3)
+    distribution_plot(df, ax3)
 
     plt.tight_layout()
     plt.show()
