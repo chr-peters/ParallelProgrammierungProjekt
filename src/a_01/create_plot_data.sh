@@ -23,6 +23,7 @@ do
     # iterate over each type
     for TYPE in 0 1 2
     do
+	echo "PROCS=$PROCS, TYPE=$TYPE"
 	# call the program and append outputs to .csv file
 	mpirun -n $PROCS mandelseq -v -t $TYPE -w 4096 -h 4096 -x -.59 -.54 -.58 -.53 -i 1024 >> $FILENAME
     done
