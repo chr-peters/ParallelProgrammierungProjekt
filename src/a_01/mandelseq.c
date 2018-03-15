@@ -1,3 +1,4 @@
+
 /*
  * mandelseq.c
  *
@@ -11,11 +12,14 @@
 #include <mpi.h>
 #include <math.h>
 
+#define WORK_TAG 69
+#define KILL_TAG 88
+
 double esecond(void) {
 
   struct timeval tp;
   struct timezone tzp;
-  
+
   gettimeofday(&tp, &tzp);
   return tp.tv_sec + (tp.tv_usec * 1e-6);
 }
@@ -32,17 +36,16 @@ void usage(char *name) {
   exit(1);
 }
 
-void calc(int *iterations, int width, int height, double xmin, double xmax,
-	  double ymin, double ymax, int maxiter, int start_row, int end_row, int start_col, int end_col);
+void calc(int *iterations, int width, int height, int xstart, int ystart, double xmin, double xmax, double ymin, double ymax, int maxiter);
 
 int main(int argc, char *argv[]) {
 
   MPI_Init(&argc, &argv);
   /* values for MPI */
   int rank, size;
-  MPI_Comm_size(MPI_COMM_WORLD, &size); 
+  MPI_Comm_size(MPI_COMM_WORLD, &size);
   MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-  
+
   /* default values for command line parameters */
   double xmin = -1.5;  /* coordinates of rectangle */
   double xmax =  0.5;
@@ -54,9 +57,9 @@ int main(int argc, char *argv[]) {
   int verbose = 0;     /* per default only print error messages */
   int type = 0;        /* per default only print error messages */
   int *iterations,*recvbuffer;
-  int    ix,iy;
-  
+  int ix,iy;
   int    i;
+
   double calctime=0.0, runtime=0.0, mpitime=0.0, waittime=0.0, iotime=0.0;
   char   filename[1024];
 
@@ -92,6 +95,9 @@ int main(int argc, char *argv[]) {
       case 'v':
         verbose++;
         break;
+      case 'b':
+        blocksize = atoi(argv[++i]);
+        break;
       default:
         usage(argv[0]);
       }
@@ -106,7 +112,7 @@ int main(int argc, char *argv[]) {
     recvbuffer = malloc(width*height*sizeof(int));
     for (ix=0; ix<width; ++ix) {
       for (iy=0; iy<height; ++iy) {
-	recvbuffer[ix*height+iy] = 0;
+	       recvbuffer[ix*height+iy] = 0;
       }
     }
   }
@@ -119,7 +125,7 @@ int main(int argc, char *argv[]) {
 
     for (ix=0; ix<width; ++ix) {
       for (iy=0; iy<height; ++iy) {
-	iterations[ix*height+iy] = 0;
+	       iterations[ix*height+iy] = 0;
       }
     }
 
@@ -132,9 +138,9 @@ int main(int argc, char *argv[]) {
     double rowHeight = (ymax-ymin)/height;
     int curRow;
     for (curRow=rank; curRow<height; curRow+=size){
-      calc(iterations, width, 1, xmin, xmax, ymin + curRow*rowHeight, ymin + curRow*rowHeight+rowHeight, maxiter, curRow, curRow+1, 0, width);
+      calc(iterations, width, 1, 0, curRow, xmin, xmax, ymin + curRow*rowHeight, ymin + curRow*rowHeight+rowHeight, maxiter);
     }
-    
+
     // measure calctime
     calctime = esecond() - calcstart;
 
@@ -151,11 +157,13 @@ int main(int argc, char *argv[]) {
     MPI_Reduce(iterations, recvbuffer, width*height, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     mpitime = esecond() - mpistart;
 
-  } else if (type == 1) {
+  }
+
+  else if (type == 1) {
     // calculate number of rows per process
     int rowCount = ceil((float)height / size);
     rowCount = fmin(rowCount, height - rank * rowCount);
-    
+
     // initialize the iterations field
     iterations = malloc(width*rowCount*sizeof(int));
 
@@ -167,9 +175,9 @@ int main(int argc, char *argv[]) {
 
     // starting measurement of calctime
     double calcstart = esecond();
-    
+
     // call the calc method
-    calc(iterations, width, rowCount, xmin, xmax, ymin + rank*defaultYRange, ymin + rank*defaultYRange + yRange, maxiter, 0, rowCount, 0, width);
+    calc(iterations, width, rowCount, 0, 0, xmin, xmax, ymin + rank*defaultYRange, ymin + rank*defaultYRange + yRange, maxiter);
 
     // measure calctime
     calctime = esecond() - calcstart;
@@ -190,18 +198,18 @@ int main(int argc, char *argv[]) {
       displs = malloc(size * sizeof(int));
 
       // fill the arrays
-      int i;
+      //int i;
       // the default row count of each process
       int defaultRowCount = ceil((float)height / size);
       for (i=0; i<size; i++) {
-	if (i==size-1) {
-	  int tmpRowCount = fmin(defaultRowCount, height - i * defaultRowCount);
-	  recvcounts[i] = tmpRowCount * width;
-	  displs[i] = defaultRowCount * width * i;
-	} else {
-	  recvcounts[i] = defaultRowCount * width;
-	  displs[i] = defaultRowCount * width * i;
-	}
+      	if (i==size-1) {
+      	  int tmpRowCount = fmin(defaultRowCount, height - i * defaultRowCount);
+      	  recvcounts[i] = tmpRowCount * width;
+      	  displs[i] = defaultRowCount * width * i;
+      	} else {
+      	  recvcounts[i] = defaultRowCount * width;
+      	  displs[i] = defaultRowCount * width * i;
+      	}
       }
     }
 
@@ -209,6 +217,84 @@ int main(int argc, char *argv[]) {
     double mpistart = esecond();
     MPI_Gatherv(iterations, rowCount*width, MPI_INT, recvbuffer, recvcounts, displs, MPI_INT, 0, MPI_COMM_WORLD);
     mpitime = esecond() - mpistart;
+  }
+
+  else if ( type == 2 ) {
+      int blocksize;
+      /*
+       *  Find optimal dimension for the blocks, starting at 16x16
+       */
+      for(i = 0; i < 15; ++i){
+        if(height % (16-i) && width % (16-i)){
+          blocksize = 16-i;
+          break;
+        }
+      }
+      /*
+       *  Define vector for optimal blocksize
+       */
+      MPI_Datatype vector;
+      MPI_Type_vector(blocksize, blocksize, width, MPI_INTEGER, &vector);
+      MPI_Type_commit(&vector);
+      MPI_Status status;
+
+      /*
+       * Master
+       */
+      if (rank == 0) {
+          int send_block_number = 0;
+          int receive_block_number;
+          int num_tasks = width * height / (blocksize * blocksize);
+          // Send initial tasks for slaves
+          for (i = 1; i < size; ++i) {
+              if (sent_block_number < num_tasks) {
+                  MPI_Send(&send_block_number, 1, MPI_INTEGER, i, WORK_TAG, MPI_COMM_WORLD);
+                  send_block_number++;
+              }
+          }
+
+          // Receive data from slaves and send the remaining tasks individually
+          int offset_x;
+          int offset_y;
+          while (send_block_number < num_tasks) {
+              MPI_Recv(&receive_block_number, 1, MPI_INTEGER, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              offset_x = (receive_block_number * blocksize) % width;
+              offset_y = (receive_block_number * blocksize) / width * width * blocksize;
+              MPI_Recv(recvbuffer + offset_x + offset_y, 1, vector, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              MPI_Send(&send_block_number, 1, MPI_INTEGER, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD);
+              send_block_number++;
+          }
+
+          // Receive remaining data after all tasks are sent
+          for (i = 1; i < size; ++i) {
+              MPI_Recv(&receive_block_number, 1, MPI_INTEGER, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              offset_x = (receive_block_number * blocksize) % width;
+              offset_y = (receive_block_number * blocksize) / width * width * blocksize;
+              MPI_Recv(recvbuffer offset_x + offset_y, 1, vector, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+          }
+
+          // Kill the slaves
+          for (i = 1; i < size; ++i) {
+              MPI_Send(0, 1, MPI_INTEGER, i, DIE_TAG, MPI_COMM_WORLD);
+          }
+
+      /*
+       * Slave
+       */
+      } else {
+          int block_number;
+          iterations = malloc(sizeof(int) * blocksize * blocksize);
+
+          while (1) {
+              MPI_Recv(&block_number, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
+              if (status.MPI_TAG == DIE_TAG) break;
+              //TODO calculate x and y params
+              calc(iterations, blocksize, blocksize, 0, 0, xmin, xmax, ymin, ymax, maxiter);
+              MPI_Send(&block_number, 1, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
+              MPI_Send(iterations, blocksize*blocksize, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
+          }
+      }
+      MPI_Type_free(&datatype);
   }
 
   // measure time of whole program
@@ -233,8 +319,7 @@ int main(int argc, char *argv[]) {
 }
 
 
-void calc(int *iterations, int width, int height, double xmin, double xmax, double ymin, double ymax,
-	  int maxiter, int start_row, int end_row, int start_col, int end_col ) {
+void calc(int *iterations, int width, int height, int xstart, int ystart, double xmin, double xmax, double ymin, double ymax, int maxiter) {
   double dx,dy,x,y;
   int    ix,iy;
 
@@ -242,9 +327,9 @@ void calc(int *iterations, int width, int height, double xmin, double xmax, doub
   dy = (ymax - ymin) / height;
 
   y = ymin;
-  for (iy=start_row; iy<end_row; ++iy) {
+  for (iy = ystart; iy < ystart + height; ++iy) {
     x = xmin;
-    for (ix=start_col; ix<end_col; ix++) {
+    for (ix = xstart; ix < xstart + width; ix++) {
       double zx=0.0,zy=0.0,zxnew;
       int count = 0;
       while ( zx*zx+zy*zy < 16*16 && count < maxiter ) {
