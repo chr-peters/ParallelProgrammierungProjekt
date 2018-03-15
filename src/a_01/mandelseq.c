@@ -1,4 +1,3 @@
-
 /*
  * mandelseq.c
  *
@@ -13,7 +12,7 @@
 #include <math.h>
 
 #define WORK_TAG 69
-#define KILL_TAG 88
+#define DIE_TAG 88
 
 double esecond(void) {
 
@@ -58,7 +57,7 @@ int main(int argc, char *argv[]) {
   int type = 0;        /* per default only print error messages */
   int *iterations,*recvbuffer;
   int ix,iy;
-  int    i;
+  int i;
 
   double calctime=0.0, runtime=0.0, mpitime=0.0, waittime=0.0, iotime=0.0;
   char   filename[1024];
@@ -94,9 +93,6 @@ int main(int argc, char *argv[]) {
         break;
       case 'v':
         verbose++;
-        break;
-      case 'b':
-        blocksize = atoi(argv[++i]);
         break;
       default:
         usage(argv[0]);
@@ -156,7 +152,6 @@ int main(int argc, char *argv[]) {
     double mpistart = esecond();
     MPI_Reduce(iterations, recvbuffer, width*height, MPI_INT, MPI_SUM, 0, MPI_COMM_WORLD);
     mpitime = esecond() - mpistart;
-
   }
 
   else if (type == 1) {
@@ -225,11 +220,12 @@ int main(int argc, char *argv[]) {
        *  Find optimal dimension for the blocks, starting at 16x16
        */
       for(i = 0; i < 15; ++i){
-        if(height % (16-i) && width % (16-i)){
+        if((height % (16-i) == 0) && (width % (16-i) == 0)){
           blocksize = 16-i;
           break;
         }
       }
+      if(verbose && rank == 0) printf("Blocksize: %d\n", blocksize);
       /*
        *  Define vector for optimal blocksize
        */
@@ -247,7 +243,7 @@ int main(int argc, char *argv[]) {
           int num_tasks = width * height / (blocksize * blocksize);
           // Send initial tasks for slaves
           for (i = 1; i < size; ++i) {
-              if (sent_block_number < num_tasks) {
+              if (send_block_number < num_tasks) {
                   MPI_Send(&send_block_number, 1, MPI_INTEGER, i, WORK_TAG, MPI_COMM_WORLD);
                   send_block_number++;
               }
@@ -270,12 +266,13 @@ int main(int argc, char *argv[]) {
               MPI_Recv(&receive_block_number, 1, MPI_INTEGER, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
               offset_x = (receive_block_number * blocksize) % width;
               offset_y = (receive_block_number * blocksize) / width * width * blocksize;
-              MPI_Recv(recvbuffer offset_x + offset_y, 1, vector, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              MPI_Recv(recvbuffer + offset_x + offset_y, 1, vector, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
           }
 
           // Kill the slaves
+          int dummy = 0;
           for (i = 1; i < size; ++i) {
-              MPI_Send(0, 1, MPI_INTEGER, i, DIE_TAG, MPI_COMM_WORLD);
+              MPI_Send(&dummy, 1, MPI_INTEGER, i, DIE_TAG, MPI_COMM_WORLD);
           }
 
       /*
@@ -286,15 +283,25 @@ int main(int argc, char *argv[]) {
           iterations = malloc(sizeof(int) * blocksize * blocksize);
 
           while (1) {
-              MPI_Recv(&block_number, 1, MPI_INTEGER, 0, 0, MPI_COMM_WORLD, &status);
-              if (status.MPI_TAG == DIE_TAG) break;
-              //TODO calculate x and y params
-              calc(iterations, blocksize, blocksize, 0, 0, xmin, xmax, ymin, ymax, maxiter);
+              MPI_Recv(&block_number, 1, MPI_INTEGER, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+              if (status.MPI_TAG == DIE_TAG){
+                break;
+              }
+              //Calculate values for calc method
+              double xrange = xmax - xmin;
+              double xlower = xmin + ((block_number * blocksize) % width) * xrange/width;
+              double xupper = xlower + (double) blocksize/width * xrange;
+              double yrange = ymax - ymin;
+              double ylower = ymin + (((block_number * blocksize)/width * blocksize)/height * yrange;
+              double yupper = ylower + (double) blocksize/height + yrange;
+              printf("xrange: %lf yrange: %lf\n", xrange, yrange);
+              printf("x -> [%lf %lf] y -> [%lf %lf]\n", xlower, xupper, ylower, yupper);
+              calc(iterations, blocksize, blocksize, 0, 0, xlower, xupper, ylower, yupper, maxiter);
               MPI_Send(&block_number, 1, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
               MPI_Send(iterations, blocksize*blocksize, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
           }
       }
-      MPI_Type_free(&datatype);
+      MPI_Type_free(&vector);
   }
 
   // measure time of whole program
