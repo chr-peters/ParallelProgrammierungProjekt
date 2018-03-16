@@ -113,6 +113,11 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  if(size == 1){
+    if(verbose) printf("Serial execution, choosing type 0\n");
+    type = 0;
+  }
+
   if (type == 0) {
     /**
      * Initialize memory.
