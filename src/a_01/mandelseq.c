@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
 
   if(size == 1){
     //if(verbose) printf("Serial execution, choosing type 0\n");
-    type = 0;
+    type = 1;
   }
 
   if (type == 0) {
