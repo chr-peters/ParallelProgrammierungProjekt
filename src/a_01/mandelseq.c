@@ -292,9 +292,11 @@ int main(int argc, char *argv[]) {
               double xlower = xmin + ((block_number * blocksize) % width) * xrange/width;
               double xupper = xlower + (double) blocksize/width * xrange;
               double yrange = ymax - ymin;
-              double ylower = ymin + (((block_number * blocksize)/width * blocksize)/height * yrange;
-              double yupper = ylower + (double) blocksize/height + yrange;
-              printf("xrange: %lf yrange: %lf\n", xrange, yrange);
+              //printf("ymax: %lf ymin: %lf\n", ymax, ymin);
+              double ylower = ymin + (double)((block_number * blocksize)/width * blocksize)/height * yrange;
+              double yupper = ylower + (double) blocksize/height * yrange;
+              /*printf("Blocksize: %d Height: %d yrange: %lf\n", blocksize, height, yrange);
+              printf("xrange: %lf yrange: %lf\n", xrange, yrange);*/
               printf("x -> [%lf %lf] y -> [%lf %lf]\n", xlower, xupper, ylower, yupper);
               calc(iterations, blocksize, blocksize, 0, 0, xlower, xupper, ylower, yupper, maxiter);
               MPI_Send(&block_number, 1, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
