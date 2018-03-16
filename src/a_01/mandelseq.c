@@ -225,26 +225,27 @@ int main(int argc, char *argv[]) {
           break;
         }
       }
-      if(verbose && rank == 0) printf("Blocksize: %d\n", blocksize);
+      //if(verbose && rank == 0) printf("Blocksize: %d\n", blocksize);
       /*
        *  Define vector for optimal blocksize
        */
       MPI_Datatype vector;
-      MPI_Type_vector(blocksize, blocksize, width, MPI_INTEGER, &vector);
+      MPI_Type_vector(blocksize, blocksize, width, MPI_INT, &vector);
       MPI_Type_commit(&vector);
       MPI_Status status;
 
       /*
        * Master
        */
-      if (rank == 0) {
+      if (rank == 0){
+          double mpistart, waitstart;
           int send_block_number = 0;
           int receive_block_number;
           int num_tasks = width * height / (blocksize * blocksize);
           // Send initial tasks for slaves
           for (i = 1; i < size; ++i) {
               if (send_block_number < num_tasks) {
-                  MPI_Send(&send_block_number, 1, MPI_INTEGER, i, WORK_TAG, MPI_COMM_WORLD);
+                  MPI_Send(&send_block_number, 1, MPI_INT, i, WORK_TAG, MPI_COMM_WORLD);
                   send_block_number++;
               }
           }
@@ -253,26 +254,34 @@ int main(int argc, char *argv[]) {
           int offset_x;
           int offset_y;
           while (send_block_number < num_tasks) {
-              MPI_Recv(&receive_block_number, 1, MPI_INTEGER, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              waitstart = esecond();
+              MPI_Recv(&receive_block_number, 1, MPI_INT, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              waittime += esecond() - waitstart;
               offset_x = (receive_block_number * blocksize) % width;
               offset_y = (receive_block_number * blocksize) / width * width * blocksize;
+              mpistart = esecond();
               MPI_Recv(recvbuffer + offset_x + offset_y, 1, vector, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
-              MPI_Send(&send_block_number, 1, MPI_INTEGER, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD);
+              mpitime += esecond() - mpistart;
+              MPI_Send(&send_block_number, 1, MPI_INT, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD);
               send_block_number++;
           }
 
           // Receive remaining data after all tasks are sent
           for (i = 1; i < size; ++i) {
-              MPI_Recv(&receive_block_number, 1, MPI_INTEGER, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              waitstart = esecond();
+              MPI_Recv(&receive_block_number, 1, MPI_INT, MPI_ANY_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              waittime += esecond() - waitstart;
               offset_x = (receive_block_number * blocksize) % width;
               offset_y = (receive_block_number * blocksize) / width * width * blocksize;
+              mpistart = esecond();
               MPI_Recv(recvbuffer + offset_x + offset_y, 1, vector, status.MPI_SOURCE, WORK_TAG, MPI_COMM_WORLD, &status);
+              mpitime += esecond() - mpistart;
           }
 
           // Kill the slaves
           int dummy = 0;
           for (i = 1; i < size; ++i) {
-              MPI_Send(&dummy, 1, MPI_INTEGER, i, DIE_TAG, MPI_COMM_WORLD);
+              MPI_Send(&dummy, 1, MPI_INT, i, DIE_TAG, MPI_COMM_WORLD);
           }
 
       /*
@@ -280,27 +289,34 @@ int main(int argc, char *argv[]) {
        */
       } else {
           int block_number;
+          double calcstart, waitstart, mpistart;
+          double xrange = xmax - xmin;
+          double yrange = ymax - ymin;
+          double xlower, xupper, ylower, yupper;
           iterations = malloc(sizeof(int) * blocksize * blocksize);
 
           while (1) {
-              MPI_Recv(&block_number, 1, MPI_INTEGER, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+              waitstart = esecond();
+              MPI_Recv(&block_number, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &status);
+              waittime += esecond() - waitstart;
               if (status.MPI_TAG == DIE_TAG){
                 break;
               }
               //Calculate values for calc method
-              double xrange = xmax - xmin;
-              double xlower = xmin + ((block_number * blocksize) % width) * xrange/width;
-              double xupper = xlower + (double) blocksize/width * xrange;
-              double yrange = ymax - ymin;
-              //printf("ymax: %lf ymin: %lf\n", ymax, ymin);
-              double ylower = ymin + (double)((block_number * blocksize)/width * blocksize)/height * yrange;
-              double yupper = ylower + (double) blocksize/height * yrange;
-              /*printf("Blocksize: %d Height: %d yrange: %lf\n", blocksize, height, yrange);
-              printf("xrange: %lf yrange: %lf\n", xrange, yrange);*/
-              printf("x -> [%lf %lf] y -> [%lf %lf]\n", xlower, xupper, ylower, yupper);
+              calcstart = esecond();
+              xrange = xmax - xmin;
+              xlower = xmin + ((block_number * blocksize) % width) * xrange/width;
+              xupper = xlower + (double) blocksize/width * xrange;
+              yrange = ymax - ymin;
+              ylower = ymin + (double)((block_number * blocksize)/width * blocksize)/height * yrange;
+              yupper = ylower + (double) blocksize/height * yrange;
+
               calc(iterations, blocksize, blocksize, 0, 0, xlower, xupper, ylower, yupper, maxiter);
-              MPI_Send(&block_number, 1, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
-              MPI_Send(iterations, blocksize*blocksize, MPI_INTEGER, 0, WORK_TAG, MPI_COMM_WORLD);
+              calctime += esecond() - calcstart;
+              mpistart = esecond();
+              MPI_Send(&block_number, 1, MPI_INT, 0, WORK_TAG, MPI_COMM_WORLD);
+              MPI_Send(iterations, blocksize*blocksize, MPI_INT, 0, WORK_TAG, MPI_COMM_WORLD);
+              mpitime += esecond() - mpistart;
           }
       }
       MPI_Type_free(&vector);
