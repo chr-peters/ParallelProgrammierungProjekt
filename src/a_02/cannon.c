@@ -46,9 +46,21 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
 
   printf("Hello, I am ( %d | %d ), and this are my blocks:\n", mycoords[0], mycoords[1]);
   printf("\nA:\n");
-  
-    
+  int j, k;
+  for (j=0; j<n; j++) {
+    for (k=0; k<n; k++) {
+      printf("%f ", A[j*n+k]);
+    }
+    printf("\n");
+  }
 
+  printf("\nB:\n");
+  for (j=0; j<n; j++) {
+    for (k=0; k<n; k++) {
+      printf("%f ", B[j*n+k]);
+    }
+    printf("\n");
+  }
 
   /* TODO: compute ranks of all four neighbors */
 
@@ -107,9 +119,9 @@ int main(int argc, char *argv[])
   blocksize = N / num_blocks;
 
   /* ALL PROCESSES: allocate memory for local part of the matrices */
-  locA = malloc(blocksize * sizeof(double));
-  locB = malloc(blocksize * sizeof(double));
-  locC = malloc(blocksize * sizeof(double));
+  locA = malloc(blocksize * blocksize * sizeof(double));
+  locB = malloc(blocksize * blocksize * sizeof(double));
+  locC = malloc(blocksize * blocksize * sizeof(double));
 
   /* ALL PROCESSES: create the Cartesian topology, without rank reordering */
   dims[0] = num_blocks;
