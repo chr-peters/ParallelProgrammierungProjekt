@@ -49,11 +49,21 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
   /* perform the initial matrix alignment for A and B */
   if (mycoords[0] != 0) {
     MPI_Cart_shift(comm_2d, 0, mycoords[0], &up, &down);
-    MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
+    printf("I am ( %d | %d ) and my upper neighbor is %d.\n", mycoords[0], mycoords[1], up);
+    printf("I am ( %d | %d ) and my lower neighbor is %d.\n", mycoords[0], mycoords[1], down);
   }
   if (mycoords[1] != 0) {
     MPI_Cart_shift(comm_2d, 1, mycoords[1], &left, &right);
+    printf("I am ( %d | %d ) and my right neighbor is %d.\n", mycoords[0], mycoords[1], right);
+    printf("I am ( %d | %d ) and my left neighbor is %d.\n", mycoords[0], mycoords[1], left);
+  }
+
+  if (mycoords[0] != 0) {
     MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
+  }
+
+  if (mycoords[1] != 0) {
+    MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
   }
 
   if (mycoords[0] == 0 && mycoords[1] == 1) {
@@ -64,6 +74,7 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
       for (col = 0; col < n; col++) {
 	printf("%f ", A[row * n + col]);
       }
+      printf("\n");
     }
 
     printf("B:");
@@ -71,6 +82,7 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
       for (col = 0; col < n; col++) {
 	printf("%f ", B[row * n + col]);
       }
+      printf("\n");
     }
 
   }
