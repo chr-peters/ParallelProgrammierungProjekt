@@ -245,7 +245,7 @@ int main(int argc, char *argv[])
 	  MPI_Cart_rank(comm_2d, curCoords, &sourceRank);
 
 	  // receive the local C matrix from the process
-	  MPI_Recv(&(matC[curRow * blocksize * N + curCol * blocksize]), 1, blockmat, sourceRank, TAG_C, comm_2d);
+	  MPI_Recv(&(matC[curRow * blocksize * N + curCol * blocksize]), 1, blockmat, sourceRank, TAG_C, comm_2d, &status);
 	}
       }
     }
