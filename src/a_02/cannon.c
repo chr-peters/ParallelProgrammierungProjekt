@@ -44,27 +44,33 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
   int shiftsource, shiftdest;
   MPI_Status status;
 
-  printf("Hello, I am ( %d | %d ), and this are my blocks:\n", mycoords[0], mycoords[1]);
-  printf("\nA:\n");
-  int j, k;
-  for (j=0; j<n; j++) {
-    for (k=0; k<n; k++) {
-      printf("%f ", A[j*n+k]);
+
+  /* compute ranks of all four neighbors */
+  MPI_Cart_shift(comm_2d, 0, mycoords[0], &up, &down);
+  MPI_Cart_shift(comm_2d, 1, mycoords[1], &left, &right);
+
+  /* perform the initial matrix alignment for A and B */
+  MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
+  MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
+
+  if (mycoords[0] == 0 && mycoords[1] == 1) {
+    printf("Hello, i am ( %d | %d ).\n", mycoords[0], mycoords[1]);
+    printf("A:");
+    int row, col;
+    for (row = 0; row < n; row++) {
+      for (col = 0; col < n; col++) {
+	printf("%f ", A[row * n + col]);
+      }
     }
-    printf("\n");
-  }
 
-  printf("\nB:\n");
-  for (j=0; j<n; j++) {
-    for (k=0; k<n; k++) {
-      printf("%f ", B[j*n+k]);
+    printf("B:");
+    for (row = 0; row < n; row++) {
+      for (col = 0; col < n; col++) {
+	printf("%f ", B[row * n + col]);
+      }
     }
-    printf("\n");
+
   }
-
-  /* TODO: compute ranks of all four neighbors */
-
-  /* TODO: perform the initial matrix alignment for A and B */
 
   /* get into the main computation loop */
   for (i=0; i<num_blocks; ++i){
