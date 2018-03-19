@@ -99,24 +99,24 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
   MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
   MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
 
-  if(mycoords[0] == 0 && mycoords[1] == 0){
-    printf("A:\n");
-    int row, col;
-    for (row = 0; row < n; row++) {
-      for (col = 0; col < n; col++) {
-	printf("%f ", A[row * n + col]);
-      }
-      printf("\n");
-    }
+  /* if(mycoords[0] == 0 && mycoords[1] == 0){ */
+  /*   printf("A:\n"); */
+  /*   int row, col; */
+  /*   for (row = 0; row < n; row++) { */
+  /*     for (col = 0; col < n; col++) { */
+  /* 	printf("%f ", A[row * n + col]); */
+  /*     } */
+  /*     printf("\n"); */
+  /*   } */
 
-    printf("B:\n");
-    for (row = 0; row < n; row++) {
-      for (col = 0; col < n; col++) {
-	printf("%f ", B[row * n + col]);
-      }
-      printf("\n");
-    }
-  }
+  /*   printf("B:\n"); */
+  /*   for (row = 0; row < n; row++) { */
+  /*     for (col = 0; col < n; col++) { */
+  /* 	printf("%f ", B[row * n + col]); */
+  /*     } */
+  /*     printf("\n"); */
+  /*   } */
+  /* } */
 }
 
 
