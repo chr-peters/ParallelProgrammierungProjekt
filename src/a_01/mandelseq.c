@@ -113,8 +113,10 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  int oldtype = type;
+
   if(size == 1){
-    //if(verbose) printf("Serial execution, choosing type 0\n");
+    //if(verbose) printf("Serial execution, choosing type 1\n");
     type = 1;
   }
 
@@ -341,7 +343,7 @@ int main(int argc, char *argv[]) {
 
   // print the time data in a csv line
   if (verbose) {
-    printf("%d,%d,%d,%f,%f,%f,%f,%f\n", size, rank, type, runtime, calctime, mpitime, waittime, iotime);
+    printf("%d,%d,%d,%f,%f,%f,%f,%f\n", size, rank, oldtype, runtime, calctime, mpitime, waittime, iotime);
   }
 
   MPI_Finalize();
