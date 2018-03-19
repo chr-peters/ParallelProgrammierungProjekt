@@ -46,12 +46,15 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
 
 
   /* compute ranks of all four neighbors */
-  MPI_Cart_shift(comm_2d, 0, mycoords[0], &up, &down);
-  MPI_Cart_shift(comm_2d, 1, mycoords[1], &left, &right);
-
   /* perform the initial matrix alignment for A and B */
-  MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
-  MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
+  if (mycoords[0] != 0) {
+    MPI_Cart_shift(comm_2d, 0, mycoords[0], &up, &down);
+    MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
+  }
+  if (mycoords[1] != 0) {
+    MPI_Cart_shift(comm_2d, 1, mycoords[1], &left, &right);
+    MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
+  }
 
   if (mycoords[0] == 0 && mycoords[1] == 1) {
     printf("Hello, i am ( %d | %d ).\n", mycoords[0], mycoords[1]);
