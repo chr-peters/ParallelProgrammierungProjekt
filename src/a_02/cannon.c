@@ -55,35 +55,42 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
   MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
   MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
 
-  if (mycoords[0] == 1 && mycoords[1] == 1) {
-    printf("Hello, i am ( %d | %d ).\n", mycoords[0], mycoords[1]);
-    printf("A:\n");
-    int row, col;
-    for (row = 0; row < n; row++) {
-      for (col = 0; col < n; col++) {
-	printf("%f ", A[row * n + col]);
-      }
-      printf("\n");
-    }
+  /* if (mycoords[0] == 1 && mycoords[1] == 1) { */
+  /*   printf("Hello, i am ( %d | %d ).\n", mycoords[0], mycoords[1]); */
+  /*   printf("A:\n"); */
+  /*   int row, col; */
+  /*   for (row = 0; row < n; row++) { */
+  /*     for (col = 0; col < n; col++) { */
+  /* 	printf("%f ", A[row * n + col]); */
+  /*     } */
+  /*     printf("\n"); */
+  /*   } */
 
-    printf("B:\n");
-    for (row = 0; row < n; row++) {
-      for (col = 0; col < n; col++) {
-	printf("%f ", B[row * n + col]);
-      }
-      printf("\n");
-    }
+  /*   printf("B:\n"); */
+  /*   for (row = 0; row < n; row++) { */
+  /*     for (col = 0; col < n; col++) { */
+  /* 	printf("%f ", B[row * n + col]); */
+  /*     } */
+  /*     printf("\n"); */
+  /*   } */
 
-  }
+  /* } */
+
+  // compute the true neighbors
+  MPI_Cart_shift(comm_2d, 1, 1, &left, &right);
+  MPI_Cart_shift(comm_2d, 0, 1, &up, &down);
 
   /* get into the main computation loop */
   for (i=0; i<num_blocks; ++i){
 
-    /* TODO: compute C = C + A*B */
+    /* compute C = C + A*B */
+    MatrixMultiply(n, A, B, C);
 
-    /* TODO: shift matrix A left by one */
+    /* shift matrix A left by one */
+    MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
 
-    /* TODO: shift matrix B up by one */
+    /* shift matrix B up by one */
+    MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
   }
 
   /* TODO: restore the original distribution of A and B */
@@ -217,15 +224,32 @@ int main(int argc, char *argv[])
   CannonMatrixMultiply(blocksize, locA, locB, locC, num_blocks, mycoords, comm_2d);
 
 
-  /* TODO: WORKER: send result to master */
+  /* WORKER: send result to master */
   if(my_rank != 0){
-
+    MPI_Send(locC, blocksize * blocksize, MPI_DOUBLE, 0, TAG_C, comm_2d);
   }
 
   /* MASTER: collect results and check correctness */
   else{
 
-    /* TODO: collect results */
+    /* collect results */
+    int curRow;
+    int curCol;
+    for (curRow = 0; curRow < num_blocks; curRow++) {
+      for (curCol = 0; curCol < num_blocks; curCol++) {
+	// don't send from master to master
+	if (curRow != mycoords[0] || curCol != mycoords[1]) {
+	  // get the rank of the destination process
+	  int sourceRank;
+	  int curCoords [] = {curRow, curCol};
+	  MPI_Cart_rank(comm_2d, curCoords, &sourceRank);
+
+	  // receive the local C matrix from the process
+	  MPI_Recv(&(matC[curRow * blocksize * N + curCol * blocksize]), 1, blockmat, sourceRank, TAG_C, comm_2d);
+	}
+      }
+    }
+    
 
     /* copy own results */
     count = 0;
@@ -246,18 +270,19 @@ int main(int argc, char *argv[])
 	    errmax=fabs(matC[i*N+j]-vergl);
 	    if(errmax>1.0)
 	      {
-		//printf("C(%d,%d)=%14.8f, vergl=%14.8f \n",i,j,matC[i*N+j],vergl);
+		printf("C(%d,%d)=%14.8f, vergl=%14.8f \n",i,j,matC[i*N+j],vergl);
 	      }
 	  }
       }
     }
     for (j=0;j<num_test_prints; j++) { 
-      //printf("C(2,%d)= %14.8f, Vergleichswert=%d \n",j,matC[2*N+j],2*(j+1)*N+(j+2)*(j+1)/2);
+      printf("C(2,%d)= %14.8f, Vergleichswert=%d \n",j,matC[2*N+j],2*(j+1)*N+(j+2)*(j+1)/2);
     }
-    //printf("maximum error: %14.8f\n",errmax);
+    printf("maximum error: %14.8f\n",errmax);
   }
 
-  /* TODO: free communicator */
+  /* free communicator */
+  MPI_Comm_free(&comm_2d);
 
   MPI_Finalize();
 
