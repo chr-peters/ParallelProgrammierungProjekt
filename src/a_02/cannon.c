@@ -138,6 +138,7 @@ int main(int argc, char *argv[])
 
   /* ALL PROCESSES: data type for the blockwise distribution of the matrices */
   MPI_Type_vector(blocksize, blocksize, N, MPI_DOUBLE, &blockmat);
+  MPI_Type_commit(&blockmat);
  
 
   /* MASTER: initialize matrices */
