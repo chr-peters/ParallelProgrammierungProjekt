@@ -44,31 +44,22 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
   int shiftsource, shiftdest;
   MPI_Status status;
 
+  int rank;
+  MPI_Comm_rank(comm_2d, &rank);
+  //printf("my coors are ( %d | %d ) and my rank is %d\n", mycoords[0], mycoords[1], rank);
+
 
   /* compute ranks of all four neighbors */
   /* perform the initial matrix alignment for A and B */
-  if (mycoords[0] != 0) {
-    MPI_Cart_shift(comm_2d, 0, mycoords[0], &up, &down);
-    printf("I am ( %d | %d ) and my upper neighbor is %d.\n", mycoords[0], mycoords[1], up);
-    printf("I am ( %d | %d ) and my lower neighbor is %d.\n", mycoords[0], mycoords[1], down);
-  }
-  if (mycoords[1] != 0) {
-    MPI_Cart_shift(comm_2d, 1, mycoords[1], &left, &right);
-    printf("I am ( %d | %d ) and my right neighbor is %d.\n", mycoords[0], mycoords[1], right);
-    printf("I am ( %d | %d ) and my left neighbor is %d.\n", mycoords[0], mycoords[1], left);
-  }
+  MPI_Cart_shift(comm_2d, 1, mycoords[0], &left, &right);
+  //printf("I am ( %d | %d ) and my right neighbor is %d.\n", mycoords[0], mycoords[1], right);
+  //printf("I am ( %d | %d ) and my left neighbor is %d.\n", mycoords[0], mycoords[1], left);
 
-  if (mycoords[0] != 0) {
-    MPI_Sendrecv_replace(B, n * n, MPI_DOUBLE, up, TAG_B, down, TAG_B, comm_2d, &status);
-  }
+  MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
 
-  if (mycoords[1] != 0) {
-    MPI_Sendrecv_replace(A, n * n, MPI_DOUBLE, left, TAG_A, right, TAG_A, comm_2d, &status);
-  }
-
-  if (mycoords[0] == 0 && mycoords[1] == 1) {
+  if (mycoords[0] == 1 && mycoords[1] == 1) {
     printf("Hello, i am ( %d | %d ).\n", mycoords[0], mycoords[1]);
-    printf("A:");
+    printf("A:\n");
     int row, col;
     for (row = 0; row < n; row++) {
       for (col = 0; col < n; col++) {
@@ -77,7 +68,7 @@ void CannonMatrixMultiply(int n, double *A, double *B, double *C,
       printf("\n");
     }
 
-    printf("B:");
+    printf("B:\n");
     for (row = 0; row < n; row++) {
       for (col = 0; col < n; col++) {
 	printf("%f ", B[row * n + col]);
@@ -257,15 +248,15 @@ int main(int argc, char *argv[])
 	    errmax=fabs(matC[i*N+j]-vergl);
 	    if(errmax>1.0)
 	      {
-		printf("C(%d,%d)=%14.8f, vergl=%14.8f \n",i,j,matC[i*N+j],vergl);
+		//printf("C(%d,%d)=%14.8f, vergl=%14.8f \n",i,j,matC[i*N+j],vergl);
 	      }
 	  }
       }
     }
     for (j=0;j<num_test_prints; j++) { 
-      printf("C(2,%d)= %14.8f, Vergleichswert=%d \n",j,matC[2*N+j],2*(j+1)*N+(j+2)*(j+1)/2);
+      //printf("C(2,%d)= %14.8f, Vergleichswert=%d \n",j,matC[2*N+j],2*(j+1)*N+(j+2)*(j+1)/2);
     }
-    printf("maximum error: %14.8f\n",errmax);
+    //printf("maximum error: %14.8f\n",errmax);
   }
 
   /* TODO: free communicator */
