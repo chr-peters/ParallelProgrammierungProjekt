@@ -163,17 +163,15 @@ int main(int argc, char *argv[]) {
 
   else if (type == 1) {
     // calculate number of rows per process
-    int rowCount = ceil((float)height / size);
-    rowCount = fmin(rowCount, height - rank * rowCount);
+    int defaultrowCount = ceil((float)height / size);
+    int rowCount = fmin(defaultRowCount, height - rank * defaultRowCount);
 
     // initialize the iterations field
     iterations = malloc(width*rowCount*sizeof(int));
 
     // calculate the y range of the block
-    double yRange = ((double)rowCount/height)*(ymax-ymin);
-
-    int defaultRowCount = ceil((float)height / size);
     double defaultYRange = ((double)defaultRowCount/height)*(ymax-ymin);
+    double yRange = ((double)rowCount/height)*(ymax-ymin);
 
     // starting measurement of calctime
     double calcstart = esecond();
@@ -311,10 +309,8 @@ int main(int argc, char *argv[]) {
               }
               //Calculate values for calc method
               calcstart = esecond();
-              xrange = xmax - xmin;
               xlower = xmin + ((block_number * blocksize) % width) * xrange/width;
               xupper = xlower + (double) blocksize/width * xrange;
-              yrange = ymax - ymin;
               ylower = ymin + (double)((block_number * blocksize)/width * blocksize)/height * yrange;
               yupper = ylower + (double) blocksize/height * yrange;
 
