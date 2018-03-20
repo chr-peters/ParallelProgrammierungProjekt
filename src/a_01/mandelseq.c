@@ -163,7 +163,7 @@ int main(int argc, char *argv[]) {
 
   else if (type == 1) {
     // calculate number of rows per process
-    int defaultrowCount = ceil((float)height / size);
+    int defaultRowCount = ceil((float)height / size);
     int rowCount = fmin(defaultRowCount, height - rank * defaultRowCount);
 
     // initialize the iterations field
